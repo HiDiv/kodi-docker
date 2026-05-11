@@ -1,0 +1,75 @@
+FROM ubuntu:22.04
+
+LABEL maintainer="hidiv"
+LABEL version="1.0"
+LABEL description="Kodi 19 (Matrix) with headless support for testing"
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Install Kodi 19 and all dependencies in a single layer
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    dbus-x11 \
+    ffmpeg \
+    kodi \
+    kodi-eventclients-kodi-send \
+    kodi-inputstream-adaptive \
+    kodi-inputstream-rtmp \
+    kodi-peripheral-joystick \
+    kodi-peripheral-xarcade \
+    locales \
+    mesa-utils \
+    novnc \
+    pulseaudio \
+    python3 \
+    scrot \
+    supervisor \
+    tigervnc-standalone-server \
+    tzdata \
+    websockify \
+    xdotool \
+    && apt-get -y --purge autoremove
+
+# Locale
+RUN locale-gen ru_RU.UTF-8
+ENV LANG=ru_RU.UTF-8
+ENV LANGUAGE=ru_RU:ru
+ENV LC_ALL=ru_RU.UTF-8
+
+# Environment defaults
+ENV KODI_MODE=headless
+ENV KODI_RESOLUTION=1280x720
+ENV ENABLE_VNC=true
+ENV ENABLE_NOVNC=true
+ENV VNC_PORT=5900
+ENV NOVNC_PORT=8000
+ENV DISPLAY=:99
+
+# Ports
+EXPOSE 5900/tcp
+EXPOSE 8000/tcp
+EXPOSE 8080/tcp
+EXPOSE 9090/tcp
+EXPOSE 9777/udp
+
+# Copy configuration and scripts
+COPY config/supervisord.conf /etc/supervisor/conf.d/kodi.conf
+COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Create directories for Kodi data
+RUN mkdir -p /root/.kodi/userdata /root/.kodi/temp /root/.kodi/addons
+
+# Suppress JACK/PulseAudio errors in headless mode
+RUN echo 'pcm.!default = null;' > /etc/asound.conf
+
+# Healthcheck: verify Kodi JSON-RPC is responding
+HEALTHCHECK --start-period=30s --interval=10s --retries=5 --timeout=5s \
+    CMD curl -sf -X POST -H "Content-Type: application/json" \
+        -d '{"jsonrpc":"2.0","method":"JSONRPC.Ping","id":1}' \
+        http://localhost:8080/jsonrpc | grep -q pong || exit 1
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

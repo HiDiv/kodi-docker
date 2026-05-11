@@ -1,0 +1,7 @@
+.aider*
+.env
+/kodi_data/
+/upload/
+/logs/
+/test-results/
+/e2e/node_modules/
