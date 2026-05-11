@@ -29,13 +29,18 @@ patch_guisettings() {
         -e 's|<setting id="screensaver.mode"[^>]*>[^<]*</setting>|<setting id="screensaver.mode"></setting>|' \
         "$gs"
 
-    # Configure windowed mode if requested
+    # Configure display mode
     if [ "$KODI_MODE" = "windowed" ] || [ "$KODI_MODE" = "headless" ]; then
         local width="${KODI_RESOLUTION%x*}"
         local height="${KODI_RESOLUTION#*x}"
         log "Setting display: ${width}x${height} (windowed)"
         sed -i \
             -e 's|<setting id="videoscreen.screenmode"[^>]*>[^<]*</setting>|<setting id="videoscreen.screenmode">WINDOW</setting>|' \
+            "$gs"
+    elif [ "$KODI_MODE" = "gui" ]; then
+        log "Setting display: fullscreen"
+        sed -i \
+            -e 's|<setting id="videoscreen.screenmode"[^>]*>WINDOW</setting>|<setting id="videoscreen.screenmode" default="true">DESKTOP</setting>|' \
             "$gs"
     fi
 }
