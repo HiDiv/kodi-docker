@@ -1,0 +1,36 @@
+FROM node:20-slim
+
+LABEL maintainer="hidiv"
+LABEL description="Kodi e2e test runner with KodiClient, vitest, ffmpeg"
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ffmpeg \
+    && rm -rf /tmp/*
+
+WORKDIR /opt/kodi-e2e
+
+# Copy KodiClient library and base config
+COPY e2e/package.json e2e/package-lock.json ./
+COPY e2e/src/ ./src/
+COPY e2e/tsconfig.json e2e/vitest.config.ts ./
+
+# Install dependencies inside image
+RUN npm ci --silent
+
+# Default environment
+ENV KODI_HOST=kodi
+ENV KODI_HTTP_PORT=8080
+ENV KODI_WS_PORT=9090
+
+# Tests mounted here by user
+VOLUME /tests
+# Results output here
+VOLUME /results
+
+COPY docker/scripts/run-tests.sh /usr/local/bin/run-tests.sh
+RUN chmod +x /usr/local/bin/run-tests.sh
+
+ENTRYPOINT ["/usr/local/bin/run-tests.sh"]
