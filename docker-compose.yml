@@ -1,0 +1,114 @@
+# Kodi Docker — universal compose for any addon project.
+#
+# Usage:
+#   docker compose --profile kodi20 up -d
+#   docker compose --profile kodi20 --profile e2e up --abort-on-container-exit
+#
+# Volumes (configure in .env or override):
+#   KODI_DATA    — path to kodi data directory (default: ./kodi_data)
+#   ADDON_PATH   — path to addon source (optional, mount separately)
+#   CONFIG_PATH  — path to config overlay (optional)
+#   TEST_DIR     — path to test files for e2e runner
+
+services:
+  kodi19:
+    image: ${KODI19_IMAGE:-kodi-test:19}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.kodi19
+    profiles: ["kodi19"]
+    hostname: kodi
+    environment:
+      KODI_MODE: ${KODI_MODE:-headless}
+      KODI_RESOLUTION: ${KODI_RESOLUTION:-1280x720}
+      ENABLE_VNC: ${ENABLE_VNC:-true}
+      ENABLE_NOVNC: ${ENABLE_NOVNC:-true}
+    volumes:
+      - ${KODI_DATA:-./kodi_data}:/root/.kodi
+      - ${CONFIG_PATH:-./config/kodi19}:/config
+    ports:
+      - "${VNC_PORT:-5900}:5900"
+      - "${NOVNC_PORT:-8000}:8000"
+      - "${HTTP_PORT:-8080}:8080"
+      - "${WS_PORT:-9090}:9090"
+      - "${EVENT_PORT:-9777}:9777/udp"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{\"jsonrpc\":\"2.0\",\"method\":\"JSONRPC.Ping\",\"id\":1}", "http://localhost:8080/jsonrpc"]
+      start_period: 30s
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  kodi20:
+    image: ${KODI20_IMAGE:-kodi-test:20}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.kodi20
+    profiles: ["kodi20"]
+    hostname: kodi
+    environment:
+      KODI_MODE: ${KODI_MODE:-headless}
+      KODI_RESOLUTION: ${KODI_RESOLUTION:-1280x720}
+      ENABLE_VNC: ${ENABLE_VNC:-true}
+      ENABLE_NOVNC: ${ENABLE_NOVNC:-true}
+    volumes:
+      - ${KODI_DATA:-./kodi_data}:/root/.kodi
+      - ${CONFIG_PATH:-./config/kodi20}:/config
+    ports:
+      - "${VNC_PORT:-5900}:5900"
+      - "${NOVNC_PORT:-8000}:8000"
+      - "${HTTP_PORT:-8080}:8080"
+      - "${WS_PORT:-9090}:9090"
+      - "${EVENT_PORT:-9777}:9777/udp"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{\"jsonrpc\":\"2.0\",\"method\":\"JSONRPC.Ping\",\"id\":1}", "http://localhost:8080/jsonrpc"]
+      start_period: 30s
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  kodi21:
+    image: ${KODI21_IMAGE:-kodi-test:21}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.kodi21
+    profiles: ["kodi21"]
+    hostname: kodi
+    environment:
+      KODI_MODE: ${KODI_MODE:-headless}
+      KODI_RESOLUTION: ${KODI_RESOLUTION:-1280x720}
+      ENABLE_VNC: ${ENABLE_VNC:-true}
+      ENABLE_NOVNC: ${ENABLE_NOVNC:-true}
+    volumes:
+      - ${KODI_DATA:-./kodi_data}:/root/.kodi
+      - ${CONFIG_PATH:-./config/kodi21}:/config
+    ports:
+      - "${VNC_PORT:-5900}:5900"
+      - "${NOVNC_PORT:-8000}:8000"
+      - "${HTTP_PORT:-8080}:8080"
+      - "${WS_PORT:-9090}:9090"
+      - "${EVENT_PORT:-9777}:9777/udp"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{\"jsonrpc\":\"2.0\",\"method\":\"JSONRPC.Ping\",\"id\":1}", "http://localhost:8080/jsonrpc"]
+      start_period: 30s
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  tests:
+    image: ${E2E_IMAGE:-kodi-e2e:latest}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.e2e
+    profiles: ["e2e"]
+    network_mode: "service:kodi20"
+    environment:
+      KODI_HOST: localhost
+      KODI_HTTP_PORT: 8080
+      KODI_WS_PORT: 9090
+    volumes:
+      - ${TEST_DIR:-./e2e/tests}:/tests
+      - ./test-results:/results
+    depends_on:
+      kodi20:
+        condition: service_healthy
